@@ -23,7 +23,7 @@ func main() {
 	// The location to save the data.
 	localLocation := "avient.com.html"
 	// Loop from page 0 to page give number
-	for pageNumber := 0; pageNumber <= 1; pageNumber++ {
+	for pageNumber := 0; pageNumber <= 1000; pageNumber++ {
 		// Construct the full URL with the current page number
 		fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber)
 		// Send a GET request to the URL
