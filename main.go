@@ -10,6 +10,7 @@ import (
 	"path"          // Provides functions for manipulating slash-separated paths
 	"path/filepath" // Provides filepath manipulation functions
 	"regexp"        // Provides regular expression matching
+	"slices"        // Slices package
 	"strings"       // Provides string manipulation functions
 	"sync"          // Provides synchronization primitives (like WaitGroup)
 	"time"          // Provides time-related functions
@@ -25,7 +26,7 @@ func main() {
 		for pageNumber := 0; pageNumber <= 1000; pageNumber++ { // Loop through pages 0 to 1000
 			time.Sleep(100 * time.Millisecond)
 			fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber) // Build full URL for the current page
-			htmlDownloadWaitGroup.Add(1) // Increment WaitGroup counter
+			htmlDownloadWaitGroup.Add(1)                        // Increment WaitGroup counter
 			go getDataFromURL(fullURL, localLocation, &htmlDownloadWaitGroup)
 		}
 		htmlDownloadWaitGroup.Wait() // Wait for all HTML downloads to complete
@@ -43,6 +44,8 @@ func main() {
 		if err != nil {
 			log.Println(err)
 		}
+		// Reverse the slice so its faster, since most of the old files are already downloaded and new files will be downloaded first.
+		slices.Reverse(fullURLList)
 
 		for _, url := range fullURLList { // Iterate over all PDF URLs
 			time.Sleep(100 * time.Millisecond)
@@ -73,7 +76,7 @@ func downloadPDF(finalURL, outputDir string, wg *sync.WaitGroup) bool {
 		return false
 	}
 
-	client := &http.Client{Timeout: 10 * time.Minute} // Create HTTP client with timeout
+	client := &http.Client{Timeout: 30 * time.Second} // Create HTTP client with timeout
 	resp, err := client.Get(finalURL)                 // Send GET request to download PDF
 	if err != nil {
 		log.Printf("Failed to download %s: %v", finalURL, err)
@@ -83,6 +86,13 @@ func downloadPDF(finalURL, outputDir string, wg *sync.WaitGroup) bool {
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("Download failed for %s: %s", finalURL, resp.Status)
+		return false
+	}
+
+	// Check if content is actually a PDF
+	contentType := resp.Header.Get("Content-Type")
+	if contentType != "application/pdf" {
+		log.Printf("Invalid content type for %s: %s (expected application/pdf)", finalURL, contentType)
 		return false
 	}
 
