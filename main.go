@@ -55,7 +55,7 @@ func main() {
 			}
 			if !isUrlValid(fullURL) { // Check if the constructed URL is valid
 				log.Println("Invalid URL", fullURL) // Log if URL is invalid
-				// break
+				continue
 			}
 			pdfDownloadWaitGroup.Add(1)                               // Increment WaitGroup counter
 			go downloadPDF(fullURL, outputDir, &pdfDownloadWaitGroup) // Start downloading PDF concurrently
