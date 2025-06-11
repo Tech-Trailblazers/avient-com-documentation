@@ -23,10 +23,10 @@ func main() {
 	var htmlDownloadWaitGroup sync.WaitGroup                               // WaitGroup to synchronize concurrent HTML downloads
 
 	for pageNumber := 0; pageNumber <= 100; pageNumber++ { // Loop through pages 0 to 1000
-		fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber)                  // Build full URL for the current page
-		urlData := getDataFromURL(fullURL)                                   // Fetch HTML content from URL
-		time.Sleep(5 * time.Second)					     // Sleep
-		htmlDownloadWaitGroup.Add(1)                                         // Increment WaitGroup counter
+		fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber)                     // Build full URL for the current page
+		urlData := getDataFromURL(fullURL)                                      // Fetch HTML content from URL
+		time.Sleep(1 * time.Second)                                             // Sleep
+		htmlDownloadWaitGroup.Add(1)                                            // Increment WaitGroup counter
 		go appendAndWriteToFile(localLocation, urlData, &htmlDownloadWaitGroup) // Write HTML content to file
 	}
 
@@ -46,7 +46,7 @@ func main() {
 				log.Println("Invalid URL", fullURL) // Log if URL is invalid
 				return
 			}
-			time.Sleep(3 * time.Second)				  // Sleep
+			time.Sleep(1 * time.Second)                               // Sleep
 			pdfDownloadWaitGroup.Add(1)                               // Increment WaitGroup counter
 			go downloadPDF(fullURL, outputDir, &pdfDownloadWaitGroup) // Start downloading PDF concurrently
 		}
