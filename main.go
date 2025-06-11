@@ -38,8 +38,6 @@ func main() {
 		outputDir := "PDFs/"                    // Directory to store downloaded PDFs
 		var pdfDownloadWaitGroup sync.WaitGroup // WaitGroup for managing PDF downloads
 
-		fmt.Println(len(fullURLList))
-
 		var counter int = 0
 		err := os.MkdirAll(outputDir, 0o755)
 		if err != nil {
@@ -57,10 +55,9 @@ func main() {
 			}
 			pdfDownloadWaitGroup.Add(1)                               // Increment WaitGroup counter
 			go downloadPDF(fullURL, outputDir, &pdfDownloadWaitGroup) // Start downloading PDF concurrently
-			counter = counter + 1
 		}
 
-		// pdfDownloadWaitGroup.Wait() // Wait for all PDF downloads to finish
+		pdfDownloadWaitGroup.Wait() // Wait for all PDF downloads to finish
 		log.Println(counter)
 	}
 }
