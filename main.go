@@ -41,8 +41,10 @@ func main() {
 		var pdfDownloadWaitGroup sync.WaitGroup // WaitGroup for managing PDF downloads
 
 		for _, url := range fullURLList { // Iterate over all PDF URLs
-			fullURL := "https://www.avient.com" + url // Construct full PDF URL
-			if !isUrlValid(fullURL) {                 // Check if the constructed URL is valid
+			if !strings.HasPrefix(url, "https://www.avient.com") {
+				fullURL := "https://www.avient.com" + url // Construct full PDF URL
+			}
+			if !isUrlValid(fullURL) { // Check if the constructed URL is valid
 				log.Println("Invalid URL", fullURL) // Log if URL is invalid
 				return
 			}
