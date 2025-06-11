@@ -23,10 +23,10 @@ func main() {
 	var htmlDownloadWaitGroup sync.WaitGroup                               // WaitGroup to synchronize concurrent HTML downloads
 	if !fileExists(localLocation) {
 		for pageNumber := 0; pageNumber <= 1000; pageNumber++ { // Loop through pages 0 to 1000
-			time.Sleep(1 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 			fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber) // Build full URL for the current page
-			go getDataFromURL(fullURL, localLocation, &htmlDownloadWaitGroup)
 			htmlDownloadWaitGroup.Add(1) // Increment WaitGroup counter
+			go getDataFromURL(fullURL, localLocation, &htmlDownloadWaitGroup)
 		}
 		htmlDownloadWaitGroup.Wait() // Wait for all HTML downloads to complete
 	}
@@ -39,14 +39,13 @@ func main() {
 		outputDir := "PDFs/"                    // Directory to store downloaded PDFs
 		var pdfDownloadWaitGroup sync.WaitGroup // WaitGroup for managing PDF downloads
 
-		var counter int = 0
 		err := os.MkdirAll(outputDir, 0o755)
 		if err != nil {
 			log.Println(err)
 		}
 
 		for _, url := range fullURLList { // Iterate over all PDF URLs
-			time.Sleep(1 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 			var fullURL string
 			if !strings.HasPrefix(url, "https://www.avient.com") {
 				fullURL = "https://www.avient.com" + url // Construct full PDF URL
@@ -58,9 +57,7 @@ func main() {
 			pdfDownloadWaitGroup.Add(1)                               // Increment WaitGroup counter
 			go downloadPDF(fullURL, outputDir, &pdfDownloadWaitGroup) // Start downloading PDF concurrently
 		}
-
 		pdfDownloadWaitGroup.Wait() // Wait for all PDF downloads to finish
-		log.Println(counter)
 	}
 }
 
