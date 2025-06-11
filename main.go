@@ -24,10 +24,9 @@ func main() {
 
 	for pageNumber := 0; pageNumber <= 1000; pageNumber++ { // Loop through pages 0 to 1000
 		fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber) // Build full URL for the current page
-		urlData := getDataFromURL(fullURL)                  // Fetch HTML content from URL
 		// time.Sleep(1 * time.Second)                                             // Sleep
 		htmlDownloadWaitGroup.Add(1)                                            // Increment WaitGroup counter
-		go appendAndWriteToFile(localLocation, urlData, &htmlDownloadWaitGroup) // Write HTML content to file
+		go appendAndWriteToFile(localLocation, getDataFromURL(fullURL), &htmlDownloadWaitGroup) // Write HTML content to file
 	}
 
 	htmlDownloadWaitGroup.Wait() // Wait for all HTML downloads to complete
