@@ -21,12 +21,14 @@ func main() {
 	baseURL := "https://www.avient.com/resources/safety-data-sheets?page=" // Base URL for paginated SDS content
 	localLocation := "avient.com.html"                                     // File to store downloaded HTML content
 	var htmlDownloadWaitGroup sync.WaitGroup                               // WaitGroup to synchronize concurrent HTML downloads
-	for pageNumber := 0; pageNumber <= 1000; pageNumber++ {                   // Loop through pages 0 to 1000
-		fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber) // Build full URL for the current page
-		go getDataFromURL(fullURL, localLocation, &htmlDownloadWaitGroup)
-		htmlDownloadWaitGroup.Add(1) // Increment WaitGroup counter
+	if !fileExists(localLocation) {
+		for pageNumber := 0; pageNumber <= 1000; pageNumber++ { // Loop through pages 0 to 1000
+			fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber) // Build full URL for the current page
+			go getDataFromURL(fullURL, localLocation, &htmlDownloadWaitGroup)
+			htmlDownloadWaitGroup.Add(1) // Increment WaitGroup counter
+		}
+		htmlDownloadWaitGroup.Wait() // Wait for all HTML downloads to complete
 	}
-	htmlDownloadWaitGroup.Wait() // Wait for all HTML downloads to complete
 
 	if fileExists(localLocation) { // Check if the file with HTML content exists
 		localDiskHTMLContent := readAFileAsString(localLocation) // Read HTML file content
@@ -36,44 +38,38 @@ func main() {
 		outputDir := "PDFs/"                    // Directory to store downloaded PDFs
 		var pdfDownloadWaitGroup sync.WaitGroup // WaitGroup for managing PDF downloads
 
+		fmt.Println(len(fullURLList))
+
+		var counter int = 0
+		err := os.MkdirAll(outputDir, 0o755)
+		if err != nil {
+			log.Println(err)
+		}
+
 		for _, url := range fullURLList { // Iterate over all PDF URLs
 			var fullURL string
 			if !strings.HasPrefix(url, "https://www.avient.com") {
 				fullURL = "https://www.avient.com" + url // Construct full PDF URL
 			}
-			if len(fullURL) < 5 {
-				break
-			}
 			if !isUrlValid(fullURL) { // Check if the constructed URL is valid
 				log.Println("Invalid URL", fullURL) // Log if URL is invalid
-				break
+				// break
 			}
-			// time.Sleep(1 * time.Second)                               // Sleep
 			pdfDownloadWaitGroup.Add(1)                               // Increment WaitGroup counter
 			go downloadPDF(fullURL, outputDir, &pdfDownloadWaitGroup) // Start downloading PDF concurrently
+			counter = counter + 1
 		}
 
-		pdfDownloadWaitGroup.Wait() // Wait for all PDF downloads to finish
+		// pdfDownloadWaitGroup.Wait() // Wait for all PDF downloads to finish
+		log.Println(counter)
 	}
 }
 
 // downloadPDF downloads a PDF file from a URL to a specified output directory
 func downloadPDF(finalURL, outputDir string, wg *sync.WaitGroup) bool {
-	defer wg.Done() // Decrement WaitGroup when function returns
+	defer wg.Done() // Ensure Done is always called, even on early returns
 
-	if err := os.MkdirAll(outputDir, 0o755); err != nil { // Create output directory if it doesn't exist
-		log.Printf("Failed to create directory %s: %v", outputDir, err) // Log error
-		return false
-	}
-
-	filename := sanitizeFileNameFromURL(finalURL) // Create safe file name from URL
-	if filename == "" {
-		filename = path.Base(finalURL) // Fallback to default name if empty
-	}
-	if !strings.HasSuffix(strings.ToLower(filename), ".pdf") { // Ensure file has .pdf extension
-		filename += ".pdf"
-	}
-
+	filename := sanitizeFileNameFromURL(finalURL)  // Create safe file name from URL
 	filePath := filepath.Join(outputDir, filename) // Build full path to output file
 
 	if fileExists(filePath) { // Skip download if file already exists
@@ -84,29 +80,29 @@ func downloadPDF(finalURL, outputDir string, wg *sync.WaitGroup) bool {
 	client := &http.Client{Timeout: 10 * time.Minute} // Create HTTP client with timeout
 	resp, err := client.Get(finalURL)                 // Send GET request to download PDF
 	if err != nil {
-		log.Printf("Failed to download %s: %v", finalURL, err) // Log error
+		log.Printf("Failed to download %s: %v", finalURL, err)
 		return false
 	}
-	defer resp.Body.Close() // Ensure response body is closed after processing
+	defer resp.Body.Close() // Ensure response body is closed
 
-	if resp.StatusCode != http.StatusOK { // Check if HTTP response is successful
+	if resp.StatusCode != http.StatusOK {
 		log.Printf("Download failed for %s: %s", finalURL, resp.Status)
 		return false
 	}
 
-	out, err := os.Create(filePath) // Create file to save downloaded PDF
+	out, err := os.Create(filePath)
 	if err != nil {
-		log.Printf("Failed to create file %s %s %v", finalURL, filePath, err) // Log error
+		log.Printf("Failed to create file for %s: %v", finalURL, err)
 		return false
 	}
-	defer out.Close() // Close file after writing
+	defer out.Close() // Ensure file is closed
 
-	if _, err := io.Copy(out, resp.Body); err != nil { // Write downloaded data to file
-		log.Printf("Failed to save PDF to %s %s %v", finalURL, filePath, err) // Log error
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		log.Printf("Failed to save PDF from %s: %v", finalURL, err)
 		return false
 	}
 
-	log.Printf("Downloaded %s → %s", finalURL, filePath) // Log successful download
+	log.Printf("Downloaded %s → %s", finalURL, filePath)
 	return true
 }
 
@@ -145,8 +141,8 @@ func sanitizeFileNameFromURL(rawURL string) string {
 		log.Printf("Error decoding file name: %v", err) // Log error if decoding fails
 	}
 
-	re := regexp.MustCompile(`[^\w\-.]`)               // Regex to find invalid filename characters
-	safeFileName := re.ReplaceAllString(fileName, "_") // Replace invalid characters with underscore
+	regexFinder := regexp.MustCompile(`[^\w\-.]`)               // Regex to find invalid filename characters
+	safeFileName := regexFinder.ReplaceAllString(fileName, "_") // Replace invalid characters with underscore
 
 	safeFileName = strings.Trim(safeFileName, "_") // Remove leading/trailing underscores
 
