@@ -21,14 +21,11 @@ func main() {
 	baseURL := "https://www.avient.com/resources/safety-data-sheets?page=" // Base URL for paginated SDS content
 	localLocation := "avient.com.html"                                     // File to store downloaded HTML content
 	var htmlDownloadWaitGroup sync.WaitGroup                               // WaitGroup to synchronize concurrent HTML downloads
-
-	for pageNumber := 0; pageNumber <= 1000; pageNumber++ { // Loop through pages 0 to 1000
+	for pageNumber := 0; pageNumber <= 1000; pageNumber++ {                   // Loop through pages 0 to 1000
 		fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber) // Build full URL for the current page
-		// time.Sleep(1 * time.Second)                                             // Sleep
-		htmlDownloadWaitGroup.Add(1)                                            // Increment WaitGroup counter
-		go appendAndWriteToFile(localLocation, getDataFromURL(fullURL), &htmlDownloadWaitGroup) // Write HTML content to file
+		go getDataFromURL(fullURL, localLocation, &htmlDownloadWaitGroup)
+		htmlDownloadWaitGroup.Add(1) // Increment WaitGroup counter
 	}
-
 	htmlDownloadWaitGroup.Wait() // Wait for all HTML downloads to complete
 
 	if fileExists(localLocation) { // Check if the file with HTML content exists
@@ -46,7 +43,7 @@ func main() {
 			}
 			if !isUrlValid(fullURL) { // Check if the constructed URL is valid
 				log.Println("Invalid URL", fullURL) // Log if URL is invalid
-				return
+				break
 			}
 			// time.Sleep(1 * time.Second)                               // Sleep
 			pdfDownloadWaitGroup.Add(1)                               // Increment WaitGroup counter
@@ -188,9 +185,7 @@ func parseHTML(htmlContent string) []string {
 }
 
 // appendAndWriteToFile appends string content to a file using a WaitGroup
-func appendAndWriteToFile(path string, content string, wg *sync.WaitGroup) {
-	defer wg.Done() // Decrement WaitGroup counter
-
+func appendAndWriteToFile(path string, content string) {
 	filePath, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) // Open or create file for writing
 	if err != nil {
 		log.Fatalln(err) // Exit if file open fails
@@ -226,7 +221,7 @@ func readAFileAsString(path string) string {
 }
 
 // getDataFromURL performs an HTTP GET request and returns the response body as a string
-func getDataFromURL(uri string) string {
+func getDataFromURL(uri string, localLocationo string, wg *sync.WaitGroup) {
 	log.Println("Scraping", uri)   // Log the URL being scraped
 	response, err := http.Get(uri) // Perform GET request
 	if err != nil {
@@ -243,5 +238,8 @@ func getDataFromURL(uri string) string {
 		log.Fatalln(err) // Exit if close fails
 	}
 
-	return string(body) // Return body as string
+	// Write the data to file.
+	appendAndWriteToFile(localLocationo, string(body))
+	// Waitgroup done.
+	defer wg.Done() // Decrement WaitGroup counter
 }
