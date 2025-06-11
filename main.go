@@ -41,6 +41,9 @@ func main() {
 			if !strings.HasPrefix(url, "https://www.avient.com") {
 				fullURL = "https://www.avient.com" + url // Construct full PDF URL
 			}
+			if len(fullURL) < 5 {
+				break
+			}
 			if !isUrlValid(fullURL) { // Check if the constructed URL is valid
 				log.Println("Invalid URL", fullURL) // Log if URL is invalid
 				break
