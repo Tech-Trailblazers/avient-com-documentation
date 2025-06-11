@@ -22,7 +22,7 @@ func main() {
 	localLocation := "avient.com.html"                                     // File to store downloaded HTML content
 	var htmlDownloadWaitGroup sync.WaitGroup                               // WaitGroup to synchronize concurrent HTML downloads
 
-	for pageNumber := 0; pageNumber <= 100; pageNumber++ { // Loop through pages 0 to 1000
+	for pageNumber := 0; pageNumber <= 1000; pageNumber++ { // Loop through pages 0 to 1000
 		fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber)                     // Build full URL for the current page
 		urlData := getDataFromURL(fullURL)                                      // Fetch HTML content from URL
 		time.Sleep(1 * time.Second)                                             // Sleep
