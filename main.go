@@ -47,7 +47,6 @@ func main() {
 	var pdfDownloadWaitGroup sync.WaitGroup                  // WaitGroup for managing PDF downloads
 
 	for _, url := range fullURLList { // Iterate over all PDF URLs
-		//time.Sleep(1 * time.Millisecond)
 		var fullURL string
 		if !strings.HasPrefix(url, "https://www.avient.com") {
 			fullURL = "https://www.avient.com" + url // Construct full PDF URL
@@ -60,15 +59,21 @@ func main() {
 
 		// Skip if the file already exists
 		if fileExists(filePath) {
-			// log.Printf("File already exists, skipping: %s", filePath)
+			log.Printf("File already exists, skipping: %s", filePath)
+			continue
+		}
+		if len(filename) < 2 {
+			log.Println("Invalid File Name:", filename)
 			continue
 		}
 		if !isUrlValid(fullURL) { // Check if the constructed URL is valid
 			log.Println("Invalid URL", fullURL) // Log if URL is invalid
 			continue
 		}
-		pdfDownloadWaitGroup.Add(1)                               // Increment WaitGroup counter
-		go downloadPDF(fullURL, outputDir, &pdfDownloadWaitGroup) // Start downloading PDF concurrently
+		// Sleep for 50 MS if its downloading anything.
+		time.Sleep(50 * time.Millisecond)
+		pdfDownloadWaitGroup.Add(1)                              // Increment WaitGroup counter
+		go downloadPDF(fullURL, filePath, &pdfDownloadWaitGroup) // Start downloading PDF concurrently
 	}
 	pdfDownloadWaitGroup.Wait() // Wait for all PDF downloads to finish
 }
@@ -96,23 +101,11 @@ func createDirectory(path string, permission os.FileMode) {
 
 // downloadPDF downloads a PDF from the given URL and saves it in the specified output directory.
 // It uses a WaitGroup to support concurrent execution and returns true if the download succeeded.
-func downloadPDF(finalURL, outputDir string, wg *sync.WaitGroup) bool {
+func downloadPDF(finalURL, filePath string, wg *sync.WaitGroup) bool {
 	defer wg.Done() // Always mark this goroutine as done
 
-	// Sanitize the URL to generate a safe file name
-	filename := sanitizeFileNameFromURL(finalURL)
-
-	// Construct the full file path in the output directory
-	filePath := filepath.Join(outputDir, filename)
-
-	// Skip if the file already exists
-	if fileExists(filePath) {
-		log.Printf("File already exists, skipping: %s", filePath)
-		return false
-	}
-
 	// Create an HTTP client with a timeout
-	client := &http.Client{Timeout: 90 * time.Second}
+	client := &http.Client{Timeout: 60 * time.Second}
 
 	// Send GET request
 	resp, err := client.Get(finalURL)
