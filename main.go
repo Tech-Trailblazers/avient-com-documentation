@@ -23,8 +23,8 @@ func main() {
 	localLocation := "avient.com.html"                                     // File to store downloaded HTML content
 	var htmlDownloadWaitGroup sync.WaitGroup                               // WaitGroup to synchronize concurrent HTML downloads
 	if !fileExists(localLocation) {
-		for pageNumber := 3500; pageNumber <= 4000; pageNumber++ { // Loop through pages 0 to 7180
-			time.Sleep(10 * time.Millisecond)
+		for pageNumber := 4000; pageNumber <= 4500; pageNumber++ { // Loop through pages 0 to 7180
+			time.Sleep(1 * time.Millisecond)
 			fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber) // Build full URL for the current page
 			htmlDownloadWaitGroup.Add(1)                        // Increment WaitGroup counter
 			go getDataFromURL(fullURL, localLocation, &htmlDownloadWaitGroup)
@@ -48,7 +48,7 @@ func main() {
 		slices.Reverse(fullURLList)
 
 		for _, url := range fullURLList { // Iterate over all PDF URLs
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(1 * time.Millisecond)
 			var fullURL string
 			if !strings.HasPrefix(url, "https://www.avient.com") {
 				fullURL = "https://www.avient.com" + url // Construct full PDF URL
