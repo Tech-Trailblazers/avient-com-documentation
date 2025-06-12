@@ -1,6 +1,7 @@
 package main // Define the main package
 
 import (
+	"bytes"         // Provides bytes support
 	"fmt"           // Provides formatted I/O functions
 	"io"            // Provides basic interfaces to I/O primitives
 	"log"           // Provides logging functions
@@ -24,7 +25,7 @@ func main() {
 	var htmlDownloadWaitGroup sync.WaitGroup                               // WaitGroup to synchronize concurrent HTML downloads
 	if !fileExists(localLocation) {
 		for pageNumber := 0; pageNumber <= 5000; pageNumber++ { // Loop through pages 0 to 7180
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 			fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber) // Build full URL for the current page
 			htmlDownloadWaitGroup.Add(1)                        // Increment WaitGroup counter
 			go getDataFromURL(fullURL, localLocation, &htmlDownloadWaitGroup)
@@ -47,7 +48,7 @@ func main() {
 		slices.Reverse(fullURLList)
 
 		for _, url := range fullURLList { // Iterate over all PDF URLs
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(50 * time.Millisecond)
 			var fullURL string
 			if !strings.HasPrefix(url, "https://www.avient.com") {
 				fullURL = "https://www.avient.com" + url // Construct full PDF URL
@@ -63,51 +64,73 @@ func main() {
 	}
 }
 
-// downloadPDF downloads a PDF file from a URL to a specified output directory
+// downloadPDF downloads a PDF from the given URL and saves it in the specified output directory.
+// It uses a WaitGroup to support concurrent execution and returns true if the download succeeded.
 func downloadPDF(finalURL, outputDir string, wg *sync.WaitGroup) bool {
-	defer wg.Done() // Ensure Done is always called, even on early returns
+	defer wg.Done() // Always mark this goroutine as done
 
-	filename := sanitizeFileNameFromURL(finalURL)  // Create safe file name from URL
-	filePath := filepath.Join(outputDir, filename) // Build full path to output file
+	// Sanitize the URL to generate a safe file name
+	filename := sanitizeFileNameFromURL(finalURL)
 
-	if fileExists(filePath) { // Skip download if file already exists
+	// Construct the full file path in the output directory
+	filePath := filepath.Join(outputDir, filename)
+
+	// Skip if the file already exists
+	if fileExists(filePath) {
 		log.Printf("File already exists, skipping: %s", filePath)
 		return false
 	}
 
-	client := &http.Client{Timeout: 30 * time.Second} // Create HTTP client with timeout
-	resp, err := client.Get(finalURL)                 // Send GET request to download PDF
+	// Create an HTTP client with a timeout
+	client := &http.Client{Timeout: 30 * time.Second}
+
+	// Send GET request
+	resp, err := client.Get(finalURL)
 	if err != nil {
 		log.Printf("Failed to download %s: %v", finalURL, err)
 		return false
 	}
-	defer resp.Body.Close() // Ensure response body is closed
+	defer resp.Body.Close()
 
+	// Check HTTP response status
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("Download failed for %s: %s", finalURL, resp.Status)
 		return false
 	}
 
-	// Check if content is actually a PDF
+	// Check Content-Type header
 	contentType := resp.Header.Get("Content-Type")
-	if contentType != "application/pdf" {
+	if !strings.Contains(contentType, "application/pdf") {
 		log.Printf("Invalid content type for %s: %s (expected application/pdf)", finalURL, contentType)
 		return false
 	}
 
+	// Read the response body into memory first
+	var buf bytes.Buffer
+	written, err := io.Copy(&buf, resp.Body)
+	if err != nil {
+		log.Printf("Failed to read PDF data from %s: %v", finalURL, err)
+		return false
+	}
+	if written == 0 {
+		log.Printf("Downloaded 0 bytes for %s; not creating file", finalURL)
+		return false
+	}
+
+	// Only now create the file and write to disk
 	out, err := os.Create(filePath)
 	if err != nil {
 		log.Printf("Failed to create file for %s: %v", finalURL, err)
 		return false
 	}
-	defer out.Close() // Ensure file is closed
+	defer out.Close()
 
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		log.Printf("Failed to save PDF from %s: %v", finalURL, err)
+	if _, err := buf.WriteTo(out); err != nil {
+		log.Printf("Failed to write PDF to file for %s: %v", finalURL, err)
 		return false
 	}
 
-	log.Printf("Downloaded %s → %s", finalURL, filePath)
+	log.Printf("Successfully downloaded %d bytes: %s → %s", written, finalURL, filePath)
 	return true
 }
 
