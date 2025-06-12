@@ -39,7 +39,7 @@ func main() {
 	}
 	// Check if the html file exists.
 	if !fileExists(localLocation) {
-		log.Fatalln("Local html file not found.")
+		log.Println("Local html file not found.")
 	}
 	localDiskHTMLContent := readAFileAsString(localLocation) // Read HTML file content
 	fullURLList := parseHTML(localDiskHTMLContent)           // Extract all PDF URLs from the HTML
@@ -47,10 +47,21 @@ func main() {
 	var pdfDownloadWaitGroup sync.WaitGroup                  // WaitGroup for managing PDF downloads
 
 	for _, url := range fullURLList { // Iterate over all PDF URLs
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 		var fullURL string
 		if !strings.HasPrefix(url, "https://www.avient.com") {
 			fullURL = "https://www.avient.com" + url // Construct full PDF URL
+		}
+		// Sanitize the URL to generate a safe file name
+		filename := sanitizeFileNameFromURL(fullURL)
+
+		// Construct the full file path in the output directory
+		filePath := filepath.Join(outputDir, filename)
+
+		// Skip if the file already exists
+		if fileExists(filePath) {
+			// log.Printf("File already exists, skipping: %s", filePath)
+			continue
 		}
 		if !isUrlValid(fullURL) { // Check if the constructed URL is valid
 			log.Println("Invalid URL", fullURL) // Log if URL is invalid
@@ -75,11 +86,11 @@ func directoryExists(path string) bool {
 
 // The function takes two parameters: path and permission.
 // We use os.Mkdir() to create the directory.
-// If there is an error, we use log.Fatalln() to log the error and then exit the program.
+// If there is an error, we use log.Println() to log the error and then exit the program.
 func createDirectory(path string, permission os.FileMode) {
 	err := os.Mkdir(path, permission)
 	if err != nil {
-		log.Fatalln(err)
+		log.Println(err)
 	}
 }
 
@@ -234,17 +245,17 @@ func parseHTML(htmlContent string) []string {
 func appendAndWriteToFile(path string, content string) {
 	filePath, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644) // Open or create file for writing
 	if err != nil {
-		log.Fatalln(err) // Exit if file open fails
+		log.Println(err) // Exit if file open fails
 	}
 
 	_, err = filePath.WriteString(content + "\n") // Append content to file
 	if err != nil {
-		log.Fatalln(err) // Exit if write fails
+		log.Println(err) // Exit if write fails
 	}
 
 	err = filePath.Close() // Close file
 	if err != nil {
-		log.Fatalln(err) // Exit if close fails
+		log.Println(err) // Exit if close fails
 	}
 }
 
@@ -261,7 +272,7 @@ func fileExists(filename string) bool {
 func readAFileAsString(path string) string {
 	content, err := os.ReadFile(path) // Read entire file into memory
 	if err != nil {
-		log.Fatalln(err) // Exit if read fails
+		log.Println(err) // Exit if read fails
 	}
 	return string(content) // Convert bytes to string and return
 }
@@ -271,17 +282,17 @@ func getDataFromURL(uri string, localLocationo string, wg *sync.WaitGroup) {
 	log.Println("Scraping", uri)   // Log the URL being scraped
 	response, err := http.Get(uri) // Perform GET request
 	if err != nil {
-		log.Fatalln(err) // Exit if request fails
+		log.Println(err) // Exit if request fails
 	}
 
 	body, err := io.ReadAll(response.Body) // Read response body
 	if err != nil {
-		log.Fatalln(err) // Exit if read fails
+		log.Println(err) // Exit if read fails
 	}
 
 	err = response.Body.Close() // Close response body
 	if err != nil {
-		log.Fatalln(err) // Exit if close fails
+		log.Println(err) // Exit if close fails
 	}
 
 	// Write the data to file.
