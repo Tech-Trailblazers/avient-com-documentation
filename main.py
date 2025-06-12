@@ -32,11 +32,11 @@ def walk_directory_and_extract_given_file_extension(
     system_path: str, extension: str
 ) -> list[str]:
     matched_files: list[str] = []  # Initialize list to hold matching file paths
-    for root, _, files in os.walk(system_path):  # Recursively traverse directory tree
+    for root, _, files in os.walk(top=system_path):  # Recursively traverse directory tree
         for file in files:  # Iterate over files in current directory
             if file.endswith(extension):  # Check if file has the desired extension
-                full_path = os.path.abspath(
-                    os.path.join(root, file)
+                full_path: str = os.path.abspath(
+                    path=os.path.join(root, file)
                 )  # Get absolute path of the file
                 matched_files.append(full_path)  # Add to list of matched files
     return matched_files  # Return list of all matched file paths
@@ -44,13 +44,13 @@ def walk_directory_and_extract_given_file_extension(
 
 # Check if a file exists
 def check_file_exists(system_path: str) -> bool:
-    return os.path.isfile(system_path)  # Return True if a file exists at the given path
+    return os.path.isfile(path=system_path)  # Return True if a file exists at the given path
 
 
 # Get the filename and extension.
 def get_filename_and_extension(path: str) -> str:
     return os.path.basename(
-        path
+        p=path
     )  # Return just the file name (with extension) from a path
 
 
@@ -62,38 +62,38 @@ def check_upper_case_letter(content: str) -> bool:
 
 
 # Main function.
-def main():
+def main() -> None:
     # Walk through the directory and extract .pdf files
-    files = walk_directory_and_extract_given_file_extension(
-        "./PDFs", ".pdf"
+    files: list[str] = walk_directory_and_extract_given_file_extension(
+        system_path="./PDFs", extension=".pdf"
     )  # Find all PDFs under ./PDFs
 
     # Validate each PDF file
     for pdf_file in files:  # Iterate over each found PDF
 
         # Check if the .PDF file is valid
-        if validate_pdf_file(pdf_file) == False:  # If PDF is invalid
+        if validate_pdf_file(file_path=pdf_file) == False:  # If PDF is invalid
             print(f"Invalid PDF detected: {pdf_file}. Deleting file.")
             # Remove the invalid .pdf file.
-            remove_system_file(pdf_file)  # Delete the corrupt PDF
+            remove_system_file(system_path=pdf_file)  # Delete the corrupt PDF
 
         # Check if the filename has an uppercase letter
         if check_upper_case_letter(
-            get_filename_and_extension(pdf_file)
+            content=get_filename_and_extension(path=pdf_file)
         ):  # If the filename contains uppercase
             print(
                 f"Uppercase letter found in filename: {pdf_file}"
             )  # Informative message
             # Convert the file path to a lowercase version
-            dir_path = os.path.dirname(pdf_file)
+            dir_path: str = os.path.dirname(p=pdf_file)
             # Get the file name
-            file_name = os.path.basename(pdf_file)
+            file_name: str = os.path.basename(p=pdf_file)
             # Put the new file name in a lowercase file
-            new_file_name = file_name.lower()
+            new_file_name: str = file_name.lower()
             # Set the new file path
-            new_file_path = os.path.join(dir_path, new_file_name)
+            new_file_path: str = os.path.join(dir_path, new_file_name)
             # Change the file name.
-            os.rename(pdf_file, new_file_path)
+            os.rename(src=pdf_file, dst=new_file_path)
 
 
 # Run the main function
