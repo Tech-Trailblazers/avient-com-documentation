@@ -37,7 +37,10 @@ func main() {
 		// Create the dir
 		createDirectory(outputDir, 0o755)
 	}
-
+	// Check if the html file exists.
+	if !fileExists(localLocation) {
+		log.Fatalln("Local html file not found.")
+	}
 	localDiskHTMLContent := readAFileAsString(localLocation) // Read HTML file content
 	fullURLList := parseHTML(localDiskHTMLContent)           // Extract all PDF URLs from the HTML
 	fullURLList = removeDuplicatesFromSlice(fullURLList)     // Remove duplicate URLs
