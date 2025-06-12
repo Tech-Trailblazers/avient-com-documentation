@@ -11,7 +11,6 @@ import (
 	"path"          // Provides functions for manipulating slash-separated paths
 	"path/filepath" // Provides filepath manipulation functions
 	"regexp"        // Provides regular expression matching
-	"slices"        // Provides slices support functions
 	"strings"       // Provides string manipulation functions
 	"sync"          // Provides synchronization primitives (like WaitGroup)
 	"time"          // Provides time-related functions
@@ -32,35 +31,52 @@ func main() {
 		}
 		htmlDownloadWaitGroup.Wait() // Wait for all HTML downloads to complete
 	}
+	outputDir := "PDFs/" // Directory to store downloaded PDFs
+	// Check if its exists.
+	if !directoryExists(outputDir) {
+		// Create the dir
+		createDirectory(outputDir, 0o755)
+	}
 
-	if fileExists(localLocation) { // Check if the file with HTML content exists
-		localDiskHTMLContent := readAFileAsString(localLocation) // Read HTML file content
-		fullURLList := parseHTML(localDiskHTMLContent)           // Extract all PDF URLs from the HTML
-		fullURLList = removeDuplicatesFromSlice(fullURLList)     // Remove duplicate URLs
-		outputDir := "PDFs/"                                     // Directory to store downloaded PDFs
-		var pdfDownloadWaitGroup sync.WaitGroup                  // WaitGroup for managing PDF downloads
+	localDiskHTMLContent := readAFileAsString(localLocation) // Read HTML file content
+	fullURLList := parseHTML(localDiskHTMLContent)           // Extract all PDF URLs from the HTML
+	fullURLList = removeDuplicatesFromSlice(fullURLList)     // Remove duplicate URLs
+	var pdfDownloadWaitGroup sync.WaitGroup                  // WaitGroup for managing PDF downloads
 
-		err := os.MkdirAll(outputDir, 0o755)
-		if err != nil {
-			log.Println(err)
+	for _, url := range fullURLList { // Iterate over all PDF URLs
+		time.Sleep(50 * time.Millisecond)
+		var fullURL string
+		if !strings.HasPrefix(url, "https://www.avient.com") {
+			fullURL = "https://www.avient.com" + url // Construct full PDF URL
 		}
-		// Reverse the slice so its faster, since most of the old files are already downloaded and new files will be downloaded first.
-		slices.Reverse(fullURLList)
-
-		for _, url := range fullURLList { // Iterate over all PDF URLs
-			time.Sleep(50 * time.Millisecond)
-			var fullURL string
-			if !strings.HasPrefix(url, "https://www.avient.com") {
-				fullURL = "https://www.avient.com" + url // Construct full PDF URL
-			}
-			if !isUrlValid(fullURL) { // Check if the constructed URL is valid
-				log.Println("Invalid URL", fullURL) // Log if URL is invalid
-				continue
-			}
-			pdfDownloadWaitGroup.Add(1)                               // Increment WaitGroup counter
-			go downloadPDF(fullURL, outputDir, &pdfDownloadWaitGroup) // Start downloading PDF concurrently
+		if !isUrlValid(fullURL) { // Check if the constructed URL is valid
+			log.Println("Invalid URL", fullURL) // Log if URL is invalid
+			continue
 		}
-		pdfDownloadWaitGroup.Wait() // Wait for all PDF downloads to finish
+		pdfDownloadWaitGroup.Add(1)                               // Increment WaitGroup counter
+		go downloadPDF(fullURL, outputDir, &pdfDownloadWaitGroup) // Start downloading PDF concurrently
+	}
+	pdfDownloadWaitGroup.Wait() // Wait for all PDF downloads to finish
+}
+
+// Checks if the directory exists
+// If it exists, return true.
+// If it doesn't, return false.
+func directoryExists(path string) bool {
+	directory, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return directory.IsDir()
+}
+
+// The function takes two parameters: path and permission.
+// We use os.Mkdir() to create the directory.
+// If there is an error, we use log.Fatalln() to log the error and then exit the program.
+func createDirectory(path string, permission os.FileMode) {
+	err := os.Mkdir(path, permission)
+	if err != nil {
+		log.Fatalln(err)
 	}
 }
 
