@@ -45,6 +45,7 @@ func main() {
 	fullURLList := parseHTML(localDiskHTMLContent)           // Extract all PDF URLs from the HTML
 	fullURLList = removeDuplicatesFromSlice(fullURLList)     // Remove duplicate URLs
 	var pdfDownloadWaitGroup sync.WaitGroup                  // WaitGroup for managing PDF downloads
+	var totalDownloadCounter int = 0
 
 	for _, url := range fullURLList { // Iterate over all PDF URLs
 		var fullURL string
@@ -74,6 +75,12 @@ func main() {
 		time.Sleep(50 * time.Millisecond)
 		pdfDownloadWaitGroup.Add(1)                              // Increment WaitGroup counter
 		go downloadPDF(fullURL, filePath, &pdfDownloadWaitGroup) // Start downloading PDF concurrently
+		// Add 1 to counter.
+		totalDownloadCounter = totalDownloadCounter + 1
+		if totalDownloadCounter == 8000 {
+			log.Fatalln("Counter Reached 80000")
+			return
+		}
 	}
 	pdfDownloadWaitGroup.Wait() // Wait for all PDF downloads to finish
 }
