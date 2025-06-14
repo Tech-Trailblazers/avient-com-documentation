@@ -78,7 +78,7 @@ func main() {
 		// Add 1 to counter.
 		totalDownloadCounter = totalDownloadCounter + 1
 		if totalDownloadCounter == 8000 {
-			log.Fatalln("Counter Reached 80000")
+			log.Fatalln("Counter Reached", totalDownloadCounter)
 			return
 		}
 	}
