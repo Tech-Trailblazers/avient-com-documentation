@@ -34,7 +34,7 @@ func main() {
 	domainURL := "https://www.avient.com"
 
 	// Loop through all paginated SDS pages
-	for pageNumber := 7200; pageNumber <= 7243; pageNumber++ {
+	for pageNumber := 0; pageNumber <= 7243; pageNumber++ {
 		// Delay 100 milliseconds between each request to avoid overloading the server
 		time.Sleep(100 * time.Millisecond)
 
