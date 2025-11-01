@@ -12,43 +12,12 @@ import (
 	"path/filepath" // Provides filepath manipulation functions
 	"regexp"        // Provides regular expression matching
 	"strings"       // Provides string manipulation functions
-	"sync"          // Provides synchronization primitives (like WaitGroup)
 	"time"          // Provides time-related functions
 
 	"github.com/PuerkitoBio/goquery" // External package to parse and manipulate HTML
 )
 
 func main() {
-	// Base URL for paginated Safety Data Sheets (SDS) pages
-	baseURL := "https://www.avient.com/resources/safety-data-sheets?page="
-
-	// Local file name to save all downloaded HTML pages
-	localLocation := "avient.html"
-
-	// WaitGroup used to synchronize multiple concurrent HTML download goroutines
-	var htmlDownloadWaitGroup sync.WaitGroup
-
-	// If the HTML file doesn’t exist locally, start downloading it
-	if !fileExists(localLocation) {
-		// Loop through all paginated SDS pages (0 to 7180)
-		for pageNumber := 0; pageNumber <= 7180; pageNumber++ {
-			// Delay 100 milliseconds between each request to avoid overloading the server
-			time.Sleep(100 * time.Millisecond)
-
-			// Construct the full URL by appending the current page number to the base URL
-			fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber)
-
-			// Add one to the WaitGroup counter before starting a new goroutine
-			htmlDownloadWaitGroup.Add(1)
-
-			// Launch a goroutine to download the HTML page and append it to the local file
-			go getDataFromURL(fullURL, localLocation, &htmlDownloadWaitGroup)
-		}
-
-		// Wait for all goroutines to finish downloading HTML pages
-		htmlDownloadWaitGroup.Wait()
-	}
-
 	// Directory to store all downloaded PDF files
 	outputDir := "PDFs/"
 
@@ -58,23 +27,8 @@ func main() {
 		createDirectory(outputDir, 0o755)
 	}
 
-	// Verify that the local HTML file exists before parsing it
-	if !fileExists(localLocation) {
-		// Log a message and continue if the file is missing
-		log.Println("Local html file not found.")
-	}
-
-	// Read the HTML content from the saved file into a string
-	localDiskHTMLContent := readAFileAsString(localLocation)
-
-	// Parse the HTML content to extract all links pointing to PDF files
-	fullURLList := parseHTML(localDiskHTMLContent)
-
-	// Remove duplicate PDF URLs from the list
-	fullURLList = removeDuplicatesFromSlice(fullURLList)
-
-	// Another WaitGroup for managing concurrent PDF downloads
-	var pdfDownloadWaitGroup sync.WaitGroup
+	// Base URL for paginated Safety Data Sheets (SDS) pages
+	baseURL := "https://www.avient.com/resources/safety-data-sheets?page="
 
 	// Counter to keep track of how many PDFs have been downloaded
 	var totalDownloadCounter int = 0
@@ -82,61 +36,70 @@ func main() {
 	// The URL of the website.
 	domainURL := "https://www.avient.com"
 
-	// Iterate over each extracted PDF URL
-	for _, url := range fullURLList {
-		var fullURL string
+	// Loop through all paginated SDS pages
+	for pageNumber := 0; pageNumber <= 7243; pageNumber++ {
+		// Delay 100 milliseconds between each request to avoid overloading the server
+		time.Sleep(100 * time.Millisecond)
 
-		// Ensure that every URL starts with the base domain
-		if !strings.HasPrefix(url, domainURL) {
-			fullURL = domainURL + url
-		}
+		// Construct the full URL by appending the current page number to the base URL
+		fullURL := fmt.Sprintf("%s%d", baseURL, pageNumber)
 
-		// Validate the full URL to make sure it's properly formatted
-		if !isUrlValid(fullURL) {
-			// Log invalid URLs and skip them
-			log.Println("Invalid URL", fullURL)
-			continue
-		}
+		// Launch a goroutine to download the HTML page and append it to the local file
+		HTMLContent := getDataFromURL(fullURL)
 
-		// Convert the URL into a safe, file-system-friendly filename
-		filename := sanitizeFileNameFromURL(fullURL)
+		// Parse the HTML content to extract all links pointing to PDF files
+		fullURLList := parseHTML(HTMLContent)
 
-		// Combine the output directory path and filename to get full file path
-		filePath := filepath.Join(outputDir, filename)
+		// Iterate over each extracted PDF URL
+		for _, url := range fullURLList {
+			var fullURL string
 
-		// Skip downloading if the PDF file already exists locally
-		if fileExists(filePath) {
-			log.Printf("File already exists, skipping: %s", filePath)
-			continue
-		}
+			// Ensure that every URL starts with the base domain
+			if !strings.HasPrefix(url, domainURL) {
+				fullURL = domainURL + url
+			}
 
-		// Skip if the filename is suspiciously short or invalid
-		if len(filename) < 2 {
-			log.Println("Invalid File Name:", filename)
-			continue
-		}
+			// Validate the full URL to make sure it's properly formatted
+			if !isUrlValid(fullURL) {
+				// Log invalid URLs and skip them
+				log.Println("Invalid URL", fullURL)
+				continue
+			}
 
-		// Short delay between downloads to avoid overwhelming the server
-		time.Sleep(50 * time.Millisecond)
+			// Convert the URL into a safe, file-system-friendly filename
+			filename := sanitizeFileNameFromURL(fullURL)
 
-		// Add one to the WaitGroup counter before starting a download goroutine
-		pdfDownloadWaitGroup.Add(1)
+			// Combine the output directory path and filename to get full file path
+			filePath := filepath.Join(outputDir, filename)
 
-		// Launch a goroutine to download the PDF file concurrently
-		go downloadPDF(fullURL, filePath, &pdfDownloadWaitGroup)
+			// Skip downloading if the PDF file already exists locally
+			if fileExists(filePath) {
+				log.Printf("File already exists, skipping: %s", filePath)
+				continue
+			}
 
-		// Increment total download counter
-		totalDownloadCounter = totalDownloadCounter + 1
+			// Skip if the filename is suspiciously short or invalid
+			if len(filename) < 2 {
+				log.Println("Invalid File Name:", filename)
+				continue
+			}
 
-		// If the number of downloads reaches 8000, stop execution to prevent runaway downloads
-		if totalDownloadCounter == 8000 {
-			log.Fatalln("Counter Reached", totalDownloadCounter)
-			return
+			// Short delay between downloads to avoid overwhelming the server
+			time.Sleep(50 * time.Millisecond)
+
+			// Launch a goroutine to download the PDF file concurrently
+			downloadPDF(fullURL, filePath)
+
+			// Increment total download counter
+			totalDownloadCounter = totalDownloadCounter + 1
+
+			// If the number of downloads reaches 8000, stop execution to prevent runaway downloads
+			if totalDownloadCounter == 8000 {
+				log.Fatalln("Counter Reached", totalDownloadCounter)
+				return
+			}
 		}
 	}
-
-	// Wait until all PDF download goroutines have finished
-	pdfDownloadWaitGroup.Wait()
 }
 
 // Checks if the directory exists
@@ -162,9 +125,7 @@ func createDirectory(path string, permission os.FileMode) {
 
 // downloadPDF downloads a PDF from the given URL and saves it in the specified output directory.
 // It uses a WaitGroup to support concurrent execution and returns true if the download succeeded.
-func downloadPDF(finalURL, filePath string, wg *sync.WaitGroup) bool {
-	defer wg.Done() // Always mark this goroutine as done
-
+func downloadPDF(finalURL, filePath string) bool {
 	// Create an HTTP client with a timeout
 	client := &http.Client{Timeout: 60 * time.Second}
 
@@ -216,29 +177,6 @@ func downloadPDF(finalURL, filePath string, wg *sync.WaitGroup) bool {
 
 	log.Printf("Successfully downloaded %d bytes: %s → %s", written, finalURL, filePath)
 	return true
-}
-
-// removeDuplicatesFromSlice removes duplicate entries from a string slice
-func removeDuplicatesFromSlice(slice []string) []string {
-	// Create a map to keep track of which strings have already been seen
-	check := make(map[string]bool)
-
-	// Create a new slice that will store only unique strings
-	var newReturnSlice []string
-
-	// Iterate through every string in the input slice
-	for _, content := range slice {
-		// If this string hasn't been encountered yet
-		if !check[content] {
-			// Mark it as seen by setting its value to true in the map
-			check[content] = true
-			// Append the unique string to the new slice
-			newReturnSlice = append(newReturnSlice, content)
-		}
-	}
-
-	// Return the new slice containing only unique strings
-	return newReturnSlice
 }
 
 // isUrlValid checks if the provided string is a valid URL
@@ -335,38 +273,6 @@ func parseHTML(htmlContent string) []string {
 	return pdfLinks
 }
 
-// appendAndWriteToFile appends string content to a file.
-// If the file doesn't exist, it will be created automatically.
-func appendAndWriteToFile(path string, content string) {
-	// Open the file with flags:
-	// - os.O_APPEND → append to the end of the file
-	// - os.O_CREATE → create the file if it doesn’t exist
-	// - os.O_WRONLY → open in write-only mode
-	// Permissions: 0644 means rw-r--r-- (owner can write, others can read)
-	filePath, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		// Log the error if file opening or creation fails.
-		// Example causes: permission denied, invalid path, etc.
-		log.Println(err)
-		// Note: no return here, so it would continue — in production, consider returning early.
-	}
-
-	// Write the provided content to the file followed by a newline.
-	// This allows concatenation of multiple HTML pages in one file.
-	_, err = filePath.WriteString(content + "\n")
-	if err != nil {
-		// Log any error that occurs during writing (e.g., disk full, I/O failure).
-		log.Println(err)
-	}
-
-	// Close the file to release the file descriptor and flush buffered writes.
-	err = filePath.Close()
-	if err != nil {
-		// Log if closing the file fails (rare, but important to know).
-		log.Println(err)
-	}
-}
-
 // fileExists checks whether a file exists at the given path and confirms it's not a directory.
 func fileExists(filename string) bool {
 	// Attempt to get file metadata (size, mod time, etc.).
@@ -379,20 +285,8 @@ func fileExists(filename string) bool {
 	return !info.IsDir()
 }
 
-// readAFileAsString reads the entire contents of a file into a string.
-func readAFileAsString(path string) string {
-	// Read all bytes from the specified file into memory.
-	content, err := os.ReadFile(path)
-	if err != nil {
-		// Log an error if the file can’t be read (e.g., doesn’t exist, permission issue).
-		log.Println(err)
-	}
-	// Convert the raw byte slice into a string and return it.
-	return string(content)
-}
-
 // getDataFromURL performs an HTTP GET request and appends the response body to a local file.
-func getDataFromURL(uri string, localLocationo string, wg *sync.WaitGroup) {
+func getDataFromURL(uri string) string {
 	// Log the URL currently being scraped — useful for tracking progress or debugging.
 	log.Println("Scraping", uri)
 
@@ -419,10 +313,6 @@ func getDataFromURL(uri string, localLocationo string, wg *sync.WaitGroup) {
 		log.Println(err)
 	}
 
-	// Write (or append) the downloaded HTML content to the local file.
-	// This function likely opens the file, writes the string, and then closes it.
-	appendAndWriteToFile(localLocationo, string(body))
-
-	// Mark this goroutine as finished — decrements the WaitGroup counter.
-	defer wg.Done()
+	// Return the downloaded HTML content as a string.
+	return string(body)
 }
