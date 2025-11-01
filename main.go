@@ -30,9 +30,6 @@ func main() {
 	// Base URL for paginated Safety Data Sheets (SDS) pages
 	baseURL := "https://www.avient.com/resources/safety-data-sheets?page="
 
-	// Counter to keep track of how many PDFs have been downloaded
-	var totalDownloadCounter int = 0
-
 	// The URL of the website.
 	domainURL := "https://www.avient.com"
 
@@ -62,7 +59,7 @@ func main() {
 			// Validate the full URL to make sure it's properly formatted
 			if !isUrlValid(fullURL) {
 				// Log invalid URLs and skip them
-				log.Println("Invalid URL", fullURL)
+				log.Println("Failed to parse URL:", fullURL)
 				continue
 			}
 
@@ -74,13 +71,13 @@ func main() {
 
 			// Skip downloading if the PDF file already exists locally
 			if fileExists(filePath) {
-				log.Printf("File already exists, skipping: %s", filePath)
+				log.Println("File already exists, skipping:", filePath)
 				continue
 			}
 
 			// Skip if the filename is suspiciously short or invalid
 			if len(filename) < 2 {
-				log.Println("Invalid File Name:", filename)
+				log.Println("File name validation failed for:", filename)
 				continue
 			}
 
@@ -89,15 +86,6 @@ func main() {
 
 			// Launch a goroutine to download the PDF file concurrently
 			downloadPDF(fullURL, filePath)
-
-			// Increment total download counter
-			totalDownloadCounter = totalDownloadCounter + 1
-
-			// If the number of downloads reaches 8000, stop execution to prevent runaway downloads
-			if totalDownloadCounter == 8000 {
-				log.Fatalln("Counter Reached", totalDownloadCounter)
-				return
-			}
 		}
 	}
 }
