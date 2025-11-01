@@ -140,16 +140,8 @@ def main() -> None:
 
         # Print the paths of all matching files
         for matching_file_path in files_with_uppercase_names:
-            # Convert the file path to a lowercase version
-            dir_path: str = os.path.dirname(p=matching_file_path)
-            # Get the file name
-            file_name: str = os.path.basename(p=matching_file_path)
-            # Put the new file name in a lowercase file
-            new_file_name: str = file_name.lower()
-            # Set the new file path
-            new_file_path: str = os.path.join(dir_path, new_file_name)
-            # Change the file name.
-            os.rename(src=matching_file_path, dst=new_file_path)
+            # Print each matching file's path
+            print(matching_file_path)
 
 
 # Ensure this script runs only if it is the main program being executed
